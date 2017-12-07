@@ -24,6 +24,8 @@
 // OTHER DEALINGS IN THE SOFTWARE.
 
 using System;
+using Autofac.Builder;
+using Castle.DynamicProxy;
 using Microsoft.ServiceFabric.Services.Runtime;
 
 namespace Autofac.Integration.ServiceFabric
@@ -38,17 +40,20 @@ namespace Autofac.Integration.ServiceFabric
         /// </summary>
         /// <param name="builder">The container builder.</param>
         /// <param name="serviceTypeName">ServiceTypeName as provied in service manifest.</param>
+        /// <returns>IRegistrationBuilder to add service specific regisrations like interceptors</returns>
         /// <typeparam name="TService">The type of the stateful service to register.</typeparam>
         /// <exception cref="ArgumentException">Thrown when <typeparamref name="TService"/> is not a valid service type.</exception>
         /// <remarks>The service will be wrapped in a dynamic proxy and must be public and not sealed.</remarks>
-        public static void RegisterStatefulService<TService>(this ContainerBuilder builder, string serviceTypeName)
+        public static IRegistrationBuilder<object, ConcreteReflectionActivatorData, SingleRegistrationStyle> RegisterStatefulService<TService>(this ContainerBuilder builder, string serviceTypeName)
             where TService : StatefulServiceBase
         {
-            RegisterServiceWithContainer<TService>(builder, serviceTypeName);
+            var registrationBuilder = RegisterServiceWithContainer<TService>(builder, serviceTypeName);
 
             builder.RegisterBuildCallback(c =>
                 c.Resolve<IStatefulServiceFactoryRegistration>()
                     .RegisterStatefulServiceFactory<TService>(c, serviceTypeName));
+
+            return registrationBuilder;
         }
 
         /// <summary>
@@ -56,20 +61,23 @@ namespace Autofac.Integration.ServiceFabric
         /// </summary>
         /// <param name="builder">The container builder.</param>
         /// <param name="serviceTypeName">ServiceTypeName as provied in service manifest.</param>
+        /// <returns>IRegistrationBuilder to add service specific regisrations like interceptors</returns>
         /// <typeparam name="TService">The type of the stateless service to register.</typeparam>
         /// <exception cref="ArgumentException">Thrown when <typeparamref name="TService"/> is not a valid service type.</exception>
         /// <remarks>The service will be wrapped in a dynamic proxy and must be public and not sealed.</remarks>
-        public static void RegisterStatelessService<TService>(this ContainerBuilder builder, string serviceTypeName)
+        public static IRegistrationBuilder<object, ConcreteReflectionActivatorData, SingleRegistrationStyle> RegisterStatelessService<TService>(this ContainerBuilder builder, string serviceTypeName)
             where TService : StatelessService
         {
-            RegisterServiceWithContainer<TService>(builder, serviceTypeName);
+            var registrationBuilder = RegisterServiceWithContainer<TService>(builder, serviceTypeName);
 
             builder.RegisterBuildCallback(c =>
                 c.Resolve<IStatelessServiceFactoryRegistration>()
                     .RegisterStatelessServiceFactory<TService>(c, serviceTypeName));
+
+            return registrationBuilder;
         }
 
-        private static void RegisterServiceWithContainer<TService>(ContainerBuilder builder, string serviceTypeName)
+        private static IRegistrationBuilder<object, ConcreteReflectionActivatorData, SingleRegistrationStyle> RegisterServiceWithContainer<TService>(ContainerBuilder builder, string serviceTypeName)
             where TService : class
         {
             if (builder == null)
@@ -83,7 +91,7 @@ namespace Autofac.Integration.ServiceFabric
             if (!serviceType.CanBeProxied())
                 throw new ArgumentException(serviceType.GetInvalidProxyTypeErrorMessage());
 
-            builder.RegisterServiceWithInterception<TService, ServiceInterceptor>();
+            return builder.RegisterServiceWithInterception<TService, ServiceInterceptor>();
         }
     }
 }

@@ -24,6 +24,7 @@
 // OTHER DEALINGS IN THE SOFTWARE.
 
 using System;
+using Autofac.Builder;
 using Microsoft.ServiceFabric.Actors.Runtime;
 
 namespace Autofac.Integration.ServiceFabric
@@ -40,10 +41,11 @@ namespace Autofac.Integration.ServiceFabric
         /// <param name="stateManagerFactory">A factory method to create <see cref="IActorStateManager"/>.</param>
         /// <param name="stateProvider">State provider to store the state for actor objects.</param>
         /// <param name="settings">/// Settings to configures behavior of Actor Service.</param>
+        /// <returns>IRegistrationBuilder to add service specific regisrations like interceptors</returns>
         /// <typeparam name="TActor">The type of the actor to register.</typeparam>
         /// <exception cref="ArgumentException">Thrown when <typeparamref name="TActor"/> is not a valid actor type.</exception>
         /// <remarks>The actor will be wrapped in a dynamic proxy and must be public and not sealed.</remarks>
-        public static void RegisterActor<TActor>(
+        public static IRegistrationBuilder<object, ConcreteReflectionActivatorData, SingleRegistrationStyle> RegisterActor<TActor>(
             this ContainerBuilder builder,
             Func<ActorBase, IActorStateProvider, IActorStateManager> stateManagerFactory = null,
             IActorStateProvider stateProvider = null,
@@ -57,11 +59,13 @@ namespace Autofac.Integration.ServiceFabric
             if (!actorType.CanBeProxied())
                 throw new ArgumentException(actorType.GetInvalidProxyTypeErrorMessage());
 
-            builder.RegisterServiceWithInterception<TActor, ActorInterceptor>();
+            var registrationBuilder = builder.RegisterServiceWithInterception<TActor, ActorInterceptor>();
 
             builder.RegisterBuildCallback(
                 c => c.Resolve<IActorFactoryRegistration>().RegisterActorFactory<TActor>(
                     c, stateManagerFactory, stateProvider, settings));
+
+            return registrationBuilder;
         }
     }
 }
